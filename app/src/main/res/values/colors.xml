@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bitlife_red">#E53935</color>
+    <color name="bitlife_red_dark">#B71C1C</color>
+    <color name="bitlife_yellow">#FFD600</color>
+    <color name="bitlife_green">#43A047</color>
+    <color name="bitlife_blue">#1E88E5</color>
+    <color name="bitlife_purple">#8E24AA</color>
+    <color name="bitlife_dark_bg">#101318</color>
+    <color name="bitlife_card_bg">#1A1E26</color>
+    <color name="bitlife_surface">#242A35</color>
+    <color name="bitlife_border">#323A48</color>
+    <color name="bitlife_text">#F5F7FA</color>
+    <color name="bitlife_muted">#9EA6B4</color>
+    <color name="stat_high">#4CAF50</color>
+    <color name="stat_medium">#FFB300</color>
+    <color name="stat_low">#E53935</color>
+</resources>

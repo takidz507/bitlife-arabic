@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bitlife_dark_bg"
+    android:layoutDirection="rtl"
+    android:orientation="vertical">
+
+    <!-- Top BitLife Red Header Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/bitlife_red"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMainMenu"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="☰ القائمة"
+            android:textColor="@color/bitlife_text"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BitLife"
+                android:textColor="@color/bitlife_yellow"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="محاكي الحياة - النسخة العربية"
+                android:textColor="@color/bitlife_text"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnHeirloom"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="🎁 الميراث"
+            android:textColor="@color/bitlife_yellow"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Character Identity & Bank Balance Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:background="@drawable/bg_card_panel"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvCharacterName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🇺🇸 John Smith"
+                android:textColor="@color/bitlife_text"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCharacterOccupation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="رضيع (0 سنة) • Los Angeles, United States"
+                android:textColor="@color/bitlife_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_badge_pill"
+            android:gravity="end"
+            android:orientation="vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp">
+
+            <TextView
+                android:id="@+id/tvBankBalance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="$0"
+                android:textColor="@color/stat_high"
+                android:textDirection="ltr"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/hud_bank_balance_label"
+                android:textColor="@color/bitlife_muted"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Scrollable Life Log (Age-by-Age Events) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvLifeLog"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingHorizontal="10dp"
+        android:paddingBottom="8dp" />
+
+    <!-- Middle Action Bar: 4 Tabs + Central Green (+ Age) Button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bitlife_card_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="8dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTabOccupation"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="2dp"
+            android:padding="2dp"
+            android:text="💼 المهنة"
+            android:textColor="@color/bitlife_text"
+            android:textSize="11sp"
+            app:cornerRadius="10dp"
+            app:strokeColor="@color/bitlife_border" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTabAssets"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="2dp"
+            android:padding="2dp"
+            android:text="🏠 الأصول"
+            android:textColor="@color/bitlife_text"
+            android:textSize="11sp"
+            app:cornerRadius="10dp"
+            app:strokeColor="@color/bitlife_border" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAgeUp"
+            android:layout_width="86dp"
+            android:layout_height="56dp"
+            android:layout_marginHorizontal="4dp"
+            android:backgroundTint="@color/bitlife_green"
+            android:text="+ العمر"
+            android:textColor="@color/bitlife_text"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:cornerRadius="28dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTabRelationships"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="2dp"
+            android:padding="2dp"
+            android:text="❤️ العلاقات"
+            android:textColor="@color/bitlife_text"
+            android:textSize="11sp"
+            app:cornerRadius="10dp"
+            app:strokeColor="@color/bitlife_border" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTabActivities"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="2dp"
+            android:padding="2dp"
+            android:text="⚡ الأنشطة"
+            android:textColor="@color/bitlife_text"
+            android:textSize="11sp"
+            app:cornerRadius="10dp"
+            app:strokeColor="@color/bitlife_border" />
+    </LinearLayout>
+
+    <!-- Bottom Stats Panel (Happiness, Health, Smarts, Looks, Karma) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bitlife_surface"
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="10dp">
+
+        <!-- Happiness -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="5dp">
+
+            <TextView
+                android:layout_width="90dp"
+                android:layout_height="wrap_content"
+                android:text="@string/stat_happiness"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <ProgressBar
+                android:id="@+id/pbHappiness"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="10dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="85"
+                android:progressTint="@color/stat_high" />
+
+            <TextView
+                android:id="@+id/tvHappinessPct"
+                android:layout_width="42dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="85%"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Health -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="5dp">
+
+            <TextView
+                android:layout_width="90dp"
+                android:layout_height="wrap_content"
+                android:text="@string/stat_health"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <ProgressBar
+                android:id="@+id/pbHealth"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="10dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="90"
+                android:progressTint="@color/stat_high" />
+
+            <TextView
+                android:id="@+id/tvHealthPct"
+                android:layout_width="42dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="90%"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Smarts -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="5dp">
+
+            <TextView
+                android:layout_width="90dp"
+                android:layout_height="wrap_content"
+                android:text="@string/stat_smarts"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <ProgressBar
+                android:id="@+id/pbSmarts"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="10dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="75"
+                android:progressTint="@color/bitlife_blue" />
+
+            <TextView
+                android:id="@+id/tvSmartsPct"
+                android:layout_width="42dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="75%"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Looks -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="90dp"
+                android:layout_height="wrap_content"
+                android:text="@string/stat_looks"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <ProgressBar
+                android:id="@+id/pbLooks"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="10dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="80"
+                android:progressTint="@color/stat_medium" />
+
+            <TextView
+                android:id="@+id/tvLooksPct"
+                android:layout_width="42dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="80%"
+                android:textColor="@color/bitlife_text"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

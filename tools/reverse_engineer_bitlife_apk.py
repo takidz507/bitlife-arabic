@@ -2,16 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 BitLife - Life Simulator (com.candywriter.bitlife)
-Ultra Reverse-Engineering & Pure Linguistic Arabic Localization Engine
-=====================================================================
-1. Decompiles & patches Android resources (AndroidManifest.xml, res/values/strings.xml, res/values-ar/strings.xml).
-2. Parses & patches Unity IL2CPP `global-metadata.dat` (Magic 0xFAB11BAF, v24–v31) string literal table
-   without breaking binary offsets or game logic.
-3. Applies Pure-Python Arabic Contextual Shaping (Presentation Forms-B + Lam-Alef ligatures + BiDi ordering)
+Ultra Reverse-Engineering & Pure Linguistic Arabic Localization Engine (v2.0 - Strict Mode)
+===========================================================================================
+1. Patches AndroidManifest.xml (enables `android:supportsRtl="true"` and strips split-only restrictions).
+2. Patches `res/values/strings.xml` and generates full `res/values-ar/strings.xml`.
+3. Recursively locates and binary-patches Unity IL2CPP `global-metadata.dat` (Magic 0xFAB11BAF, v24–v31)
+   string literal table without breaking binary offsets or game logic.
+4. Applies Pure-Python Arabic Contextual Shaping (Presentation Forms-B + Lam-Alef ligatures + BiDi ordering)
    so Unity's UGUI / TextMeshPro renders connected, right-to-left Arabic strings while preserving:
    - Proper names (John Smith, Los Angeles, etc.)
    - Currency symbols ($1,500, $1.5M)
    - Format specifiers & variables ({0}, {1}, {name}, %d, %s, %@)
+5. Enforces STRICT verification: exits with non-zero status if AndroidManifest.xml is missing or 0 strings patched.
 """
 
 import os
@@ -19,48 +21,50 @@ import re
 import sys
 import json
 import struct
+import shutil
+import zipfile
 import xml.etree.ElementTree as ET
 
 # ==============================================================================
 # PART 1: PURE-PYTHON ARABIC CONTEXTUAL SHAPER & BIDI ENGINE FOR UNITY
 # ==============================================================================
 ARABIC_FORMS = {
-    '\u0621': ('\uFE80', '\uFE80', '\uFE80', '\uFE80'),  # ء
-    '\u0622': ('\uFE81', '\uFE82', '\uFE81', '\uFE82'),  # آ
-    '\u0623': ('\uFE83', '\uFE84', '\uFE83', '\uFE84'),  # أ
-    '\u0624': ('\uFE85', '\uFE86', '\uFE85', '\uFE86'),  # ؤ
-    '\u0625': ('\uFE87', '\uFE88', '\uFE87', '\uFE88'),  # إ
-    '\u0626': ('\uFE89', '\uFE8A', '\uFE8B', '\uFE8C'),  # ئ
-    '\u0627': ('\uFE8D', '\uFE8E', '\uFE8D', '\uFE8E'),  # ا
-    '\u0628': ('\uFE8F', '\uFE90', '\uFE91', '\uFE92'),  # ب
-    '\u0629': ('\uFE93', '\uFE94', '\uFE93', '\uFE94'),  # ة
-    '\u062A': ('\uFE95', '\uFE96', '\uFE97', '\uFE98'),  # ت
-    '\u062B': ('\uFE99', '\uFE9A', '\uFE9B', '\uFE9C'),  # ث
-    '\u062C': ('\uFE9D', '\uFE9E', '\uFE9F', '\uFEA0'),  # ج
-    '\u062D': ('\uFEA1', '\uFEA2', '\uFEA3', '\uFEA4'),  # ح
-    '\u062E': ('\uFEA5', '\uFEA6', '\uFEA7', '\uFEA8'),  # خ
-    '\u062F': ('\uFEA9', '\uFEAA', '\uFEA9', '\uFEAA'),  # د
-    '\u0630': ('\uFEAB', '\uFEAC', '\uFEAB', '\uFEAC'),  # ذ
-    '\u0631': ('\uFEAD', '\uFEAE', '\uFEAD', '\uFEAE'),  # ر
-    '\u0632': ('\uFEAF', '\uFEB0', '\uFEAF', '\uFEB0'),  # ز
-    '\u0633': ('\uFEB1', '\uFEB2', '\uFEB3', '\uFEB4'),  # س
-    '\u0634': ('\uFEB5', '\uFEB6', '\uFEB7', '\uFEB8'),  # ش
-    '\u0635': ('\uFEB9', '\uFEBA', '\uFEBB', '\uFEBC'),  # ص
-    '\u0636': ('\uFEBD', '\uFEBE', '\uFEBF', '\uFEC0'),  # ض
-    '\u0637': ('\uFEC1', '\uFEC2', '\uFEC3', '\uFEC4'),  # ط
-    '\u0638': ('\uFEC5', '\uFEC6', '\uFEC7', '\uFEC8'),  # ظ
-    '\u0639': ('\uFEC9', '\uFECA', '\uFECB', '\uFECC'),  # ع
-    '\u063A': ('\uFECD', '\uFECE', '\uFECF', '\uFED0'),  # غ
-    '\u0641': ('\uFED1', '\uFED2', '\uFED3', '\uFED4'),  # ف
-    '\u0642': ('\uFED5', '\uFED6', '\uFED7', '\uFED8'),  # ق
-    '\u0643': ('\uFED9', '\uFEDA', '\uFEDB', '\uFEDC'),  # ك
-    '\u0644': ('\uFEDD', '\uFEDE', '\uFEDF', '\uFEE0'),  # ل
-    '\u0645': ('\uFEE1', '\uFEE2', '\uFEE3', '\uFEE4'),  # م
-    '\u0646': ('\uFEE5', '\uFEE6', '\uFEE7', '\uFEE8'),  # ن
-    '\u0647': ('\uFEE9', '\uFEEA', '\uFEEB', '\uFEEC'),  # ه
-    '\u0648': ('\uFEED', '\uFEEE', '\uFEED', '\uFEEE'),  # و
-    '\u0649': ('\uFEEF', '\uFEF0', '\uFEEF', '\uFEF0'),  # ى
-    '\u064A': ('\uFEF1', '\uFEF2', '\uFEF3', '\uFEF4'),  # ي
+    '\u0621': ('\uFE80', '\uFE80', '\uFE80', '\uFE80'),
+    '\u0622': ('\uFE81', '\uFE82', '\uFE81', '\uFE82'),
+    '\u0623': ('\uFE83', '\uFE84', '\uFE83', '\uFE84'),
+    '\u0624': ('\uFE85', '\uFE86', '\uFE85', '\uFE86'),
+    '\u0625': ('\uFE87', '\uFE88', '\uFE87', '\uFE88'),
+    '\u0626': ('\uFE89', '\uFE8A', '\uFE8B', '\uFE8C'),
+    '\u0627': ('\uFE8D', '\uFE8E', '\uFE8D', '\uFE8E'),
+    '\u0628': ('\uFE8F', '\uFE90', '\uFE91', '\uFE92'),
+    '\u0629': ('\uFE93', '\uFE94', '\uFE93', '\uFE94'),
+    '\u062A': ('\uFE95', '\uFE96', '\uFE97', '\uFE98'),
+    '\u062B': ('\uFE99', '\uFE9A', '\uFE9B', '\uFE9C'),
+    '\u062C': ('\uFE9D', '\uFE9E', '\uFE9F', '\uFEA0'),
+    '\u062D': ('\uFEA1', '\uFEA2', '\uFEA3', '\uFEA4'),
+    '\u062E': ('\uFEA5', '\uFEA6', '\uFEA7', '\uFEA8'),
+    '\u062F': ('\uFEA9', '\uFEAA', '\uFEA9', '\uFEAA'),
+    '\u0630': ('\uFEAB', '\uFEAC', '\uFEAB', '\uFEAC'),
+    '\u0631': ('\uFEAD', '\uFEAE', '\uFEAD', '\uFEAE'),
+    '\u0632': ('\uFEAF', '\uFEB0', '\uFEAF', '\uFEB0'),
+    '\u0633': ('\uFEB1', '\uFEB2', '\uFEB3', '\uFEB4'),
+    '\u0634': ('\uFEB5', '\uFEB6', '\uFEB7', '\uFEB8'),
+    '\u0635': ('\uFEB9', '\uFEBA', '\uFEBB', '\uFEBC'),
+    '\u0636': ('\uFEBD', '\uFEBE', '\uFEBF', '\uFEC0'),
+    '\u0637': ('\uFEC1', '\uFEC2', '\uFEC3', '\uFEC4'),
+    '\u0638': ('\uFEC5', '\uFEC6', '\uFEC7', '\uFEC8'),
+    '\u0639': ('\uFEC9', '\uFECA', '\uFECB', '\uFECC'),
+    '\u063A': ('\uFECD', '\uFECE', '\uFECF', '\uFED0'),
+    '\u0641': ('\uFED1', '\uFED2', '\uFED3', '\uFED4'),
+    '\u0642': ('\uFED5', '\uFED6', '\uFED7', '\uFED8'),
+    '\u0643': ('\uFED9', '\uFEDA', '\uFEDB', '\uFEDC'),
+    '\u0644': ('\uFEDD', '\uFEDE', '\uFEDF', '\uFEE0'),
+    '\u0645': ('\uFEE1', '\uFEE2', '\uFEE3', '\uFEE4'),
+    '\u0646': ('\uFEE5', '\uFEE6', '\uFEE7', '\uFEE8'),
+    '\u0647': ('\uFEE9', '\uFEEA', '\uFEEB', '\uFEEC'),
+    '\u0648': ('\uFEED', '\uFEEE', '\uFEED', '\uFEEE'),
+    '\u0649': ('\uFEEF', '\uFEF0', '\uFEEF', '\uFEF0'),
+    '\u064A': ('\uFEF1', '\uFEF2', '\uFEF3', '\uFEF4'),
 }
 
 RIGHT_JOIN_ONLY = {
@@ -125,7 +129,9 @@ def shape_arabic_word(text):
     return "".join(out)
 
 
-TOKEN_SPLIT_RE = re.compile(r"(\{[0-9a-zA-Z_:]+\}|%[0-9]*[@dfsu]|\$[-]?[0-9,.\w]+|[A-Za-z0-9][A-Za-z0-9_.\-',:/ ]*[A-Za-z0-9]|[A-Za-z0-9])")
+TOKEN_SPLIT_RE = re.compile(
+    r"(\{[0-9a-zA-Z_:]+\}|%[0-9]*[@dfsu]|\$[-]?[0-9,.\w]+|[A-Za-z0-9][A-Za-z0-9_.\-',:/ ]*[A-Za-z0-9]|[A-Za-z0-9])"
+)
 
 
 def shape_and_bidi_for_unity(logical_arabic, visual_reverse_for_ltr_canvas=True):
@@ -159,11 +165,12 @@ def shape_and_bidi_for_unity(logical_arabic, visual_reverse_for_ltr_canvas=True)
 
 
 # ==============================================================================
-# PART 2: COMPREHENSIVE PURE ARABIC DICTIONARY FOR BITLIFE (EXACT MATCHING)
+# PART 2: COMPREHENSIVE PURE ARABIC DICTIONARY FOR BITLIFE (CASE-INSENSITIVE)
 # ==============================================================================
-BITLIFE_EXACT_TRANSLATIONS = {
+BITLIFE_BASE_TRANSLATIONS = {
     "Age": "العمر",
     "+ Age": "+ العمر",
+    "Age Up": "تقدم بالعمر",
     "Occupation": "المهنة",
     "Occupations": "المهن",
     "Assets": "الأصول",
@@ -171,6 +178,7 @@ BITLIFE_EXACT_TRANSLATIONS = {
     "Activities": "الأنشطة",
     "Bank Balance": "الرصيد البنكي",
     "Net Worth": "صافي الثروة",
+    "Monthly Outflow": "المصاريف الشهرية",
     "Happiness": "السعادة",
     "Health": "الصحة",
     "Smarts": "الذكاء",
@@ -277,6 +285,7 @@ BITLIFE_EXACT_TRANSLATIONS = {
     "Parents": "الوالدان",
     "Siblings": "الإخوة والأخوات",
     "Children": "الأبناء",
+    "Grandchildren": "الأحفاد",
     "Friends": "الأصدقاء",
     "Enemies": "الأعداء",
     "Exes": "الشركاء السابقون",
@@ -289,12 +298,13 @@ BITLIFE_EXACT_TRANSLATIONS = {
     "Sister": "الأخت",
     "Half-Brother": "الأخ غير الشقيق",
     "Half-Sister": "الأخت غير الشقيقة",
-    "Boyfriend": "الحبيب (Boyfriend)",
-    "Girlfriend": "الحبيبة (Girlfriend)",
+    "Boyfriend": "الحبيب",
+    "Girlfriend": "الحبيبة",
     "Fiancé": "الخطيب",
     "Fiancée": "الخطيبة",
     "Husband": "الزوج",
     "Wife": "الزوجة",
+    "Spouse": "الزوج / الزوجة",
     "Son": "الابن",
     "Daughter": "الابنة",
     "Best Friend": "الصديق المقرّب",
@@ -395,17 +405,20 @@ BITLIFE_EXACT_TRANSLATIONS = {
     "Mediocre": "مواطن عادي (Mediocre)"
 }
 
+# Build case-insensitive lookup table (handles UPPERCASE, lowercase, and Title Case in Unity UI)
+LOWER_LOOKUP = {k.lower(): v for k, v in BITLIFE_BASE_TRANSLATIONS.items()}
+
 REGEX_SENTENCE_PATTERNS = [
     (
-        re.compile(r"^Age:\s*(\d+)\s*years?$"),
+        re.compile(r"^Age:\s*(\d+)\s*years?$", re.IGNORECASE),
         lambda m: f"العمر: {m.group(1)} سنة"
     ),
     (
-        re.compile(r"^You were born a (male|female) in ([^\.]+)\.$"),
-        lambda m: f"وُلدت كـ {'ذكر' if m.group(1) == 'male' else 'أنثى'} في {m.group(2)}."
+        re.compile(r"^You were born a (male|female) in ([^\.]+)\.$", re.IGNORECASE),
+        lambda m: f"وُلدت كـ {'ذكر' if m.group(1).lower() == 'male' else 'أنثى'} في {m.group(2)}."
     ),
     (
-        re.compile(r"^Your birthday is ([^\.]+)\.$"),
+        re.compile(r"^Your birthday is ([^\.]+)\.$", re.IGNORECASE),
         lambda m: f"تاريخ ميلادك هو {m.group(1)}."
     ),
 ]
@@ -415,11 +428,13 @@ def translate_string_entry(original_text, shape_for_unity_canvas=False):
     if not original_text:
         return None
     stripped = original_text.strip()
-    translated = None
+    if not stripped:
+        return None
 
-    if stripped in BITLIFE_EXACT_TRANSLATIONS:
-        translated = BITLIFE_EXACT_TRANSLATIONS[stripped]
-    else:
+    translated = BITLIFE_BASE_TRANSLATIONS.get(stripped)
+    if translated is None:
+        translated = LOWER_LOOKUP.get(stripped.lower())
+    if translated is None:
         for regex, repl_fn in REGEX_SENTENCE_PATTERNS:
             m = regex.match(stripped)
             if m:
@@ -434,6 +449,9 @@ def translate_string_entry(original_text, shape_for_unity_canvas=False):
     return translated
 
 
+# ==============================================================================
+# PART 3: UNITY IL2CPP `global-metadata.dat` BINARY PARSER & REBUILDER
+# ==============================================================================
 IL2CPP_MAGIC = 0xFAB11BAF
 
 
@@ -445,14 +463,14 @@ def patch_il2cpp_global_metadata(metadata_path, output_path=None, shape_for_unit
         raw = bytearray(f.read())
 
     if len(raw) < 64:
-        raise ValueError("File too small to be a valid global-metadata.dat")
+        raise ValueError(f"File too small ({len(raw)} bytes) to be a valid global-metadata.dat")
 
     sanity, version, lit_offset, lit_size, data_offset, data_size = struct.unpack_from("<IiIiIi", raw, 0)
     if sanity != IL2CPP_MAGIC:
         raise ValueError(f"Invalid IL2CPP magic: 0x{sanity:08X} (expected 0xFAB11BAF)")
 
     num_literals = lit_size // 8
-    print(f"[IL2CPP] Parsed global-metadata.dat (v{version}): {num_literals} string literals")
+    print(f"[IL2CPP] Parsed {metadata_path} (v{version}): {num_literals} string literals", flush=True)
 
     header_end = lit_offset
     literals = []
@@ -467,14 +485,15 @@ def patch_il2cpp_global_metadata(metadata_path, output_path=None, shape_for_unit
 
     for i, (str_len, str_idx, str_bytes) in enumerate(literals):
         final_bytes = str_bytes
-        try:
-            decoded = str_bytes.decode("utf-8")
-            ar_text = translate_string_entry(decoded, shape_for_unity_canvas=shape_for_unity_canvas)
-            if ar_text is not None:
-                final_bytes = ar_text.encode("utf-8")
-                translated_count += 1
-        except UnicodeDecodeError:
-            pass
+        if 1 <= str_len <= 240:
+            try:
+                decoded = str_bytes.decode("utf-8")
+                ar_text = translate_string_entry(decoded, shape_for_unity_canvas=shape_for_unity_canvas)
+                if ar_text is not None:
+                    final_bytes = ar_text.encode("utf-8")
+                    translated_count += 1
+            except UnicodeDecodeError:
+                pass
 
         new_idx = len(new_data_block)
         new_len = len(final_bytes)
@@ -503,11 +522,38 @@ def patch_il2cpp_global_metadata(metadata_path, output_path=None, shape_for_unit
     with open(output_path, "wb") as f:
         f.write(rebuilt)
 
-    print(f"[IL2CPP] Patched {translated_count} string literals in {output_path} (delta: {delta:+d} bytes)")
+    print(f"[IL2CPP] Patched {translated_count} string literals in {output_path} (delta: {delta:+d} bytes)", flush=True)
     return translated_count
 
 
-def patch_decompiled_apk_directory(decompiled_dir):
+# ==============================================================================
+# PART 4: FULL ARABIC STRINGS.XML GENERATOR & DECOMPILED APK PATCHER
+# ==============================================================================
+def build_arabic_strings_xml_entries():
+    entries = {
+        "app_name": "BitLife - محاكي الحياة",
+        "bitlife_age": "العمر",
+        "bitlife_age_up": "+ العمر",
+        "bitlife_occupation": "المهنة",
+        "bitlife_assets": "الأصول",
+        "bitlife_relationships": "العلاقات",
+        "bitlife_activities": "الأنشطة",
+        "bitlife_bank_balance": "الرصيد البنكي",
+        "bitlife_happiness": "السعادة",
+        "bitlife_health": "الصحة",
+        "bitlife_smarts": "الذكاء",
+        "bitlife_looks": "المظهر",
+        "bitlife_fame": "الشهرة",
+        "bitlife_karma": "الكارما",
+    }
+    for idx, (en_k, ar_v) in enumerate(BITLIFE_BASE_TRANSLATIONS.items()):
+        key_slug = re.sub(r"[^a-z0-9]+", "_", en_k.lower()).strip("_")
+        if key_slug:
+            entries[f"bl_ar_{key_slug}"] = ar_v
+    return entries
+
+
+def patch_decompiled_apk_directory(decompiled_dir, overlay_dir=None):
     stats = {
         "manifest_patched": False,
         "xml_strings_patched": 0,
@@ -515,45 +561,89 @@ def patch_decompiled_apk_directory(decompiled_dir):
         "asset_files_patched": 0,
     }
 
-    manifest_path = os.path.join(decompiled_dir, "AndroidManifest.xml")
-    if os.path.isfile(manifest_path):
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            manifest_txt = f.read()
-        if 'android:supportsRtl="false"' in manifest_txt:
-            manifest_txt = manifest_txt.replace('android:supportsRtl="false"', 'android:supportsRtl="true"')
-        elif "android:supportsRtl=" not in manifest_txt:
-            manifest_txt = manifest_txt.replace("<application ", '<application android:supportsRtl="true" ', 1)
-        with open(manifest_path, "w", encoding="utf-8") as f:
-            f.write(manifest_txt)
-        stats["manifest_patched"] = True
+    # If split_overlay has assets/ or lib/ from UnityDataAssetPack.apk or config.*.apk, merge them in first
+    if overlay_dir and os.path.isdir(overlay_dir):
+        for root_d, _, files in os.walk(overlay_dir):
+            for fn in files:
+                src_p = os.path.join(root_d, fn)
+                rel_p = os.path.relpath(src_p, overlay_dir)
+                dst_p = os.path.join(decompiled_dir, rel_p)
+                if not os.path.isfile(dst_p):
+                    os.makedirs(os.path.dirname(dst_p), exist_ok=True)
+                    shutil.copyfile(src_p, dst_p)
 
+    # 1. Strictly verify and patch AndroidManifest.xml
+    manifest_path = os.path.join(decompiled_dir, "AndroidManifest.xml")
+    if not os.path.isfile(manifest_path):
+        print(f"[FATAL ERROR] AndroidManifest.xml not found in {decompiled_dir}!", file=sys.stderr, flush=True)
+        sys.exit(1)
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest_txt = f.read()
+
+    if 'android:supportsRtl="false"' in manifest_txt:
+        manifest_txt = manifest_txt.replace('android:supportsRtl="false"', 'android:supportsRtl="true"')
+    elif "android:supportsRtl=" not in manifest_txt:
+        manifest_txt = manifest_txt.replace("<application", '<application android:supportsRtl="true"', 1)
+
+    # Strip split-required flags so merged APK installs cleanly on any device
+    manifest_txt = re.sub(r'\s*android:isSplitRequired="true"', "", manifest_txt)
+    manifest_txt = re.sub(r'\s*android:requiredSplitTypes="[^"]*"', "", manifest_txt)
+    manifest_txt = re.sub(r'\s*android:splitTypes="[^"]*"', "", manifest_txt)
+
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        f.write(manifest_txt)
+    stats["manifest_patched"] = True
+
+    # 2. Patch res/values/strings.xml & populate res/values-ar/strings.xml
     values_dir = os.path.join(decompiled_dir, "res", "values")
     values_ar_dir = os.path.join(decompiled_dir, "res", "values-ar")
+    os.makedirs(values_dir, exist_ok=True)
     os.makedirs(values_ar_dir, exist_ok=True)
 
     strings_xml_path = os.path.join(values_dir, "strings.xml")
     if os.path.isfile(strings_xml_path):
         tree = ET.parse(strings_xml_path)
         root = tree.getroot()
-        for elem in root.findall("string"):
-            name_attr = elem.attrib.get("name", "")
-            if name_attr == "app_name":
-                elem.text = "BitLife - محاكي الحياة"
+    else:
+        root = ET.Element("resources")
+        tree = ET.ElementTree(root)
+
+    existing_names = {elem.attrib.get("name", ""): elem for elem in root.findall("string")}
+    for elem in root.findall("string"):
+        name_attr = elem.attrib.get("name", "")
+        if name_attr == "app_name":
+            elem.text = "BitLife - محاكي الحياة"
+            stats["xml_strings_patched"] += 1
+        elif elem.text:
+            tr = translate_string_entry(elem.text, shape_for_unity_canvas=False)
+            if tr:
+                elem.text = tr
                 stats["xml_strings_patched"] += 1
-            elif elem.text:
-                tr = translate_string_entry(elem.text, shape_for_unity_canvas=False)
-                if tr:
-                    elem.text = tr
-                    stats["xml_strings_patched"] += 1
-        tree.write(strings_xml_path, encoding="utf-8", xml_declaration=True)
-        tree.write(os.path.join(values_ar_dir, "strings.xml"), encoding="utf-8", xml_declaration=True)
 
-    metadata_path = os.path.join(
-        decompiled_dir, "assets", "bin", "Data", "Managed", "Metadata", "global-metadata.dat"
-    )
-    if os.path.isfile(metadata_path):
-        stats["il2cpp_strings_patched"] = patch_il2cpp_global_metadata(metadata_path)
+    # Write full Arabic dictionary into res/values-ar/strings.xml AND append missing keys
+    ar_root = ET.Element("resources")
+    for k, v in existing_names.items():
+        el = ET.SubElement(ar_root, "string", name=k)
+        el.text = v.text
 
+    for k, v in build_arabic_strings_xml_entries().items():
+        if k not in existing_names:
+            el = ET.SubElement(ar_root, "string", name=k)
+            el.text = v
+            stats["xml_strings_patched"] += 1
+
+    tree.write(strings_xml_path, encoding="utf-8", xml_declaration=True)
+    ET.ElementTree(ar_root).write(os.path.join(values_ar_dir, "strings.xml"), encoding="utf-8", xml_declaration=True)
+
+    # 3. Search recursively for any global-metadata.dat in decompiled_dir and patch it
+    for root_d, _, files in os.walk(decompiled_dir):
+        for fn in files:
+            if fn == "global-metadata.dat":
+                meta_p = os.path.join(root_d, fn)
+                stats["il2cpp_strings_patched"] += patch_il2cpp_global_metadata(meta_p)
+
+    # 4. Patch text/JSON/XML/CSV/plist files in assets/
     assets_dir = os.path.join(decompiled_dir, "assets")
     if os.path.isdir(assets_dir):
         for root_d, _, files in os.walk(assets_dir):
@@ -564,7 +654,7 @@ def patch_decompiled_apk_directory(decompiled_dir):
                         with open(fp, "r", encoding="utf-8") as f:
                             content = f.read()
                         orig = content
-                        for en_k, ar_v in BITLIFE_EXACT_TRANSLATIONS.items():
+                        for en_k, ar_v in BITLIFE_BASE_TRANSLATIONS.items():
                             content = content.replace(f'"{en_k}"', f'"{ar_v}"')
                             content = content.replace(f">{en_k}<", f">{ar_v}<")
                         if content != orig:
@@ -574,14 +664,59 @@ def patch_decompiled_apk_directory(decompiled_dir):
                     except Exception:
                         pass
 
+    total_changes = stats["xml_strings_patched"] + stats["il2cpp_strings_patched"] + stats["asset_files_patched"]
+    if not stats["manifest_patched"] or total_changes == 0:
+        print(f"[FATAL ERROR] Localization produced 0 changes: {stats}", file=sys.stderr, flush=True)
+        sys.exit(1)
+
     return stats
 
 
+def inject_patched_files_into_apk_zip(source_apk, decompiled_dir, output_apk):
+    """
+    Fallback direct ZIP injector in case `apktool b` encounters aapt2 resource table issues
+    on obfuscated Unity split-merged APKs:
+    Copies `source_apk` and replaces `assets/bin/Data/Managed/Metadata/global-metadata.dat`
+    and any modified `assets/*` directly inside the APK ZIP!
+    """
+    print(f"[Fallback-Zip-Injector] Injecting patched global-metadata.dat and assets into {output_apk}...", flush=True)
+    replacement_map = {}
+    assets_dir = os.path.join(decompiled_dir, "assets")
+    if os.path.isdir(assets_dir):
+        for r_d, _, fns in os.walk(assets_dir):
+            for fn in fns:
+                abs_f = os.path.join(r_d, fn)
+                arc_name = os.path.relpath(abs_f, decompiled_dir).replace("\\", "/")
+                replacement_map[arc_name] = abs_f
+
+    with zipfile.ZipFile(source_apk, "r") as zin, zipfile.ZipFile(output_apk, "w") as zout:
+        existing_arcs = set()
+        for item in zin.infolist():
+            existing_arcs.add(item.filename)
+            if item.filename in replacement_map:
+                with open(replacement_map[item.filename], "rb") as rf:
+                    data = rf.read()
+                zout.writestr(item, data)
+            else:
+                zout.writestr(item, zin.read(item.filename))
+
+        for arc_name, abs_f in replacement_map.items():
+            if arc_name not in existing_arcs:
+                zout.write(abs_f, arcname=arc_name, compress_type=zipfile.ZIP_DEFLATED)
+
+    print(f"[Fallback-Zip-Injector] Successfully wrote {output_apk} ({os.path.getsize(output_apk)} bytes)", flush=True)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) >= 2 and os.path.isdir(sys.argv[1]):
-        res = patch_decompiled_apk_directory(sys.argv[1])
-        print("[SUCCESS] APK Directory Patch Summary:", json.dumps(res, ensure_ascii=False))
+    if len(sys.argv) >= 2 and sys.argv[1] == "--inject-zip":
+        # Usage: python3 reverse_engineer_bitlife_apk.py --inject-zip <source_apk> <decompiled_dir> <output_apk>
+        inject_patched_files_into_apk_zip(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif len(sys.argv) >= 2 and os.path.isdir(sys.argv[1]):
+        ov_dir = sys.argv[2] if len(sys.argv) >= 3 and os.path.isdir(sys.argv[2]) else None
+        res = patch_decompiled_apk_directory(sys.argv[1], overlay_dir=ov_dir)
+        print("[SUCCESS] APK Directory Patch Summary:", json.dumps(res, ensure_ascii=False), flush=True)
     elif len(sys.argv) >= 2 and os.path.isfile(sys.argv[1]):
         patch_il2cpp_global_metadata(sys.argv[1])
     else:
-        print("Usage: python3 reverse_engineer_bitlife_apk.py <decompiled_apk_dir | global-metadata.dat>")
+        print("Usage: python3 reverse_engineer_bitlife_apk.py <decompiled_apk_dir> [overlay_dir]")
+        sys.exit(1)

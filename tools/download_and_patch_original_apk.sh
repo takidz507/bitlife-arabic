@@ -1,53 +1,106 @@
 #!/usr/bin/env bash
-set -e
-echo "=================================================================="
-echo " BitLife (com.candywriter.bitlife) Ultra Reverse-Engineering Tool"
-echo "=================================================================="
-WORK_DIR="$(pwd)/build_reverse_eng"
+set -euo pipefail
+
+echo "========================================================================"
+echo " BitLife (com.candywriter.bitlife) Strict Reverse-Engineering Pipeline "
+echo "========================================================================"
+
+REPO_ROOT="$(pwd)"
+WORK_DIR="$REPO_ROOT/build_reverse_eng"
 mkdir -p "$WORK_DIR"
-INPUT_APK=""
-if [ -f "original/bitlife.apk" ]; then
-    INPUT_APK="$(pwd)/original/bitlife.apk"
-    echo "[+] Found user-provided original/bitlife.apk"
-elif [ -f "original/bitlife.xapk" ]; then
-    INPUT_APK="$(pwd)/original/bitlife.xapk"
-    echo "[+] Found user-provided original/bitlife.xapk"
-elif [ -n "$BITLIFE_APK_URL" ]; then
-    echo "[+] Downloading BitLife APK from BITLIFE_APK_URL..."
-    curl -L --fail -A "Mozilla/5.0" "$BITLIFE_APK_URL" -o "$WORK_DIR/downloaded.apk" && INPUT_APK="$WORK_DIR/downloaded.apk" || true
-else
-    echo "[+] Attempting automatic fetch of latest com.candywriter.bitlife APK..."
-    curl -L --max-time 45 -A "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" "https://d.apkpure.net/b/APK/com.candywriter.bitlife?version=latest" -o "$WORK_DIR/downloaded.apk" 2>/dev/null || true
-    if [ -f "$WORK_DIR/downloaded.apk" ] && [ $(stat -c%s "$WORK_DIR/downloaded.apk" 2>/dev/null || echo 0) -gt 5000000 ]; then
-        INPUT_APK="$WORK_DIR/downloaded.apk"
-        echo "[+] Successfully downloaded official BitLife package"
+
+echo "[+] Step 0/5: Installing Downloader Dependencies & Reverse-Engineering Tools..."
+pip3 install --quiet curl_cffi cloudscraper playwright || true
+playwright install chromium 2>/dev/null || true
+
+# Download Apktool v2.9.3
+curl -sL --fail --retry 3 "https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar" -o "$WORK_DIR/apktool.jar"
+if [ ! -f "$WORK_DIR/apktool.jar" ] || [ $(stat -c%s "$WORK_DIR/apktool.jar") -lt 5000000 ]; then
+    echo "[FATAL ERROR] Failed to download a valid apktool.jar!" >&2
+    exit 1
+fi
+
+# Download APKEditor (for XAPK / Split APK merging)
+curl -sL --retry 3 "https://github.com/REAndroid/APKEditor/releases/download/V1.3.9/APKEditor-1.3.9.jar" -o "$WORK_DIR/APKEditor.jar" || true
+if [ ! -f "$WORK_DIR/APKEditor.jar" ] || [ $(stat -c%s "$WORK_DIR/APKEditor.jar" 2>/dev/null || echo 0) -lt 100000 ]; then
+    APKEDITOR_URL=$(curl -sL https://api.github.com/repos/REAndroid/APKEditor/releases/latest | python3 -c "import sys, json; data=json.load(sys.stdin); print(next((a['browser_download_url'] for a in data.get('assets', []) if a['name'].endswith('.jar')), ''))" 2>/dev/null || true)
+    if [ -n "$APKEDITOR_URL" ]; then
+        curl -sL "$APKEDITOR_URL" -o "$WORK_DIR/APKEditor.jar" || true
     fi
 fi
-if [ -z "$INPUT_APK" ] || [ ! -f "$INPUT_APK" ]; then
-    echo "[i] No external binary APK found or mirror required CAPTCHA; using Gradle-built Arabic BitLife APK."
-    exit 0
+
+# Download EFF apkeep CLI binary if available
+APKEEP_URL=$(curl -sL https://api.github.com/repos/EFForg/apkeep/releases/latest | python3 -c "import sys, json; data=json.load(sys.stdin); print(next((a['browser_download_url'] for a in data.get('assets', []) if 'x86_64-unknown-linux-gnu' in a['name']), ''))" 2>/dev/null || true)
+if [ -n "$APKEEP_URL" ]; then
+    curl -sL "$APKEEP_URL" -o "$WORK_DIR/apkeep" && chmod +x "$WORK_DIR/apkeep" || true
 fi
-echo "[+] Preparing Apktool v2.9.3 & APKEditor v1.3.9..."
-curl -sL "https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar" -o "$WORK_DIR/apktool.jar"
-curl -sL "https://github.com/REAndroid/APKEditor/releases/download/V1.3.9/APKEditor-1.3.9.jar" -o "$WORK_DIR/APKEditor.jar"
-TARGET_APK="$INPUT_APK"
-if unzip -l "$INPUT_APK" | grep -q "base.apk"; then
-    echo "[+] Detected Split APK Bundle (XAPK/APKS). Merging splits via APKEditor..."
-    java -jar "$WORK_DIR/APKEditor.jar" m -i "$INPUT_APK" -o "$WORK_DIR/merged_bitlife.apk"
-    TARGET_APK="$WORK_DIR/merged_bitlife.apk"
+
+echo "[+] Step 1/5: Acquiring & Unpacking Official BitLife Package (APK / XAPK)..."
+python3 "$REPO_ROOT/tools/fetch_and_prepare_bitlife_apk.py" "$WORK_DIR" "$REPO_ROOT" "$WORK_DIR/APKEditor.jar"
+
+if [ ! -f "$WORK_DIR/prepared_apk_info.json" ]; then
+    echo "[FATAL ERROR] prepared_apk_info.json was not generated! Halting build." >&2
+    exit 1
 fi
-echo "[+] Step 1/4: Decompiling BitLife APK via Apktool..."
-java -Xmx3072m -jar "$WORK_DIR/apktool.jar" d -f "$TARGET_APK" -o "$WORK_DIR/decompiled"
-echo "[+] Step 2/4: Running Binary IL2CPP (global-metadata.dat) & Resource Arabic Localization..."
-python3 tools/reverse_engineer_bitlife_apk.py "$WORK_DIR/decompiled"
-echo "[+] Step 3/4: Rebuilding Modified Arabic BitLife APK..."
-java -Xmx3072m -jar "$WORK_DIR/apktool.jar" b --use-aapt2 "$WORK_DIR/decompiled" -o "$WORK_DIR/bitlife-arabic-unaligned.apk"
-echo "[+] Step 4/4: Zipaligning & Signing APK (V1 + V2 + V3)..."
+
+TARGET_APK=$(python3 -c "import json; print(json.load(open('$WORK_DIR/prepared_apk_info.json'))['prepared_apk'])")
+OVERLAY_DIR=$(python3 -c "import json; print(json.load(open('$WORK_DIR/prepared_apk_info.json'))['overlay_dir'])")
+
+if [ ! -f "$TARGET_APK" ]; then
+    echo "[FATAL ERROR] Prepared single APK ($TARGET_APK) does not exist!" >&2
+    exit 1
+fi
+
+echo "[+] Step 2/5: Decompiling BitLife APK via Apktool (-s / --no-src for fast resource & IL2CPP access)..."
+rm -rf "$WORK_DIR/decompiled"
+java -Xmx4096m -jar "$WORK_DIR/apktool.jar" d -f -s "$TARGET_APK" -o "$WORK_DIR/decompiled"
+
+# STRICT CHECK: Verify AndroidManifest.xml exists in decompiled directory
+if [ ! -f "$WORK_DIR/decompiled/AndroidManifest.xml" ]; then
+    echo "[FATAL ERROR] Decompilation failed: AndroidManifest.xml is missing in $WORK_DIR/decompiled!" >&2
+    ls -la "$WORK_DIR/decompiled" || true
+    exit 1
+fi
+
+echo "[+] Step 3/5: Applying Binary IL2CPP (global-metadata.dat) & Resource Arabic Localization..."
+python3 "$REPO_ROOT/tools/reverse_engineer_bitlife_apk.py" "$WORK_DIR/decompiled" "$OVERLAY_DIR"
+
+echo "[+] Step 4/5: Rebuilding Modified Arabic BitLife APK..."
+UNALIGNED_APK="$WORK_DIR/bitlife-arabic-unaligned.apk"
+if ! java -Xmx4096m -jar "$WORK_DIR/apktool.jar" b --use-aapt2 "$WORK_DIR/decompiled" -o "$UNALIGNED_APK"; then
+    echo "[!] apktool b --use-aapt2 encountered split-resource conflict; using Direct ZIP Binary Injector fallback..."
+    python3 "$REPO_ROOT/tools/reverse_engineer_bitlife_apk.py" --inject-zip "$TARGET_APK" "$WORK_DIR/decompiled" "$UNALIGNED_APK"
+fi
+
+if [ ! -f "$UNALIGNED_APK" ] || [ $(stat -c%s "$UNALIGNED_APK") -lt 10000000 ]; then
+    echo "[FATAL ERROR] Rebuilt APK ($UNALIGNED_APK) is missing or invalid!" >&2
+    exit 1
+fi
+
+echo "[+] Step 5/5: Zipaligning & Signing APK (V1 + V2 + V3)..."
 BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/34.0.0"
-"$BUILD_TOOLS_DIR/zipalign" -p -f 4 "$WORK_DIR/bitlife-arabic-unaligned.apk" "$WORK_DIR/bitlife-arabic-aligned.apk"
+ALIGNED_APK="$WORK_DIR/bitlife-arabic-aligned.apk"
+"$BUILD_TOOLS_DIR/zipalign" -p -f 4 "$UNALIGNED_APK" "$ALIGNED_APK"
+
+if [ ! -f "$ALIGNED_APK" ]; then
+    echo "[FATAL ERROR] zipalign failed to produce $ALIGNED_APK!" >&2
+    exit 1
+fi
+
 if [ ! -f "$WORK_DIR/debug.keystore" ]; then
     keytool -genkey -v -keystore "$WORK_DIR/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 fi
-mkdir -p app/build/outputs/apk/debug
-"$BUILD_TOOLS_DIR/apksigner" sign --ks "$WORK_DIR/debug.keystore" --ks-pass pass:android --key-pass pass:android --out app/build/outputs/apk/debug/app-debug.apk "$WORK_DIR/bitlife-arabic-aligned.apk"
-echo "[SUCCESS] Patched & Signed Original BitLife Arabic APK -> app/build/outputs/apk/debug/app-debug.apk"
+
+FINAL_APK="$REPO_ROOT/app/build/outputs/apk/debug/app-debug.apk"
+mkdir -p "$(dirname "$FINAL_APK")"
+"$BUILD_TOOLS_DIR/apksigner" sign --ks "$WORK_DIR/debug.keystore" --ks-pass pass:android --key-pass pass:android --out "$FINAL_APK" "$ALIGNED_APK"
+"$BUILD_TOOLS_DIR/apksigner" verify "$FINAL_APK"
+
+if [ ! -f "$FINAL_APK" ]; then
+    echo "[FATAL ERROR] Final signed APK ($FINAL_APK) was not created!" >&2
+    exit 1
+fi
+
+echo "========================================================================"
+echo " [SUCCESS] Signed Arabic BitLife APK Ready: $FINAL_APK ($(stat -c%s "$FINAL_APK") bytes)"
+echo "========================================================================"

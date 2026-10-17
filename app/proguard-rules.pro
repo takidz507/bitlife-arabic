@@ -1,0 +1,2 @@
+-keep class com.candywriter.bitlife.models.** { *; }
+-dontwarn javax.annotation.**

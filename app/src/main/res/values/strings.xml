@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App & Main HUD -->
+    <string name="app_name">BitLife - محاكي الحياة</string>
+    <string name="header_subtitle">النسخة المعربة الكاملة (ترجمة لغوية نقية)</string>
+    <string name="hud_bank_balance_label">الرصيد البنكي</string>
+    <string name="hud_age_year">العمر: %1$d سنة</string>
+    <string name="btn_age_up">+ العمر</string>
+    <string name="tab_occupation">المهنة</string>
+    <string name="tab_assets">الأصول</string>
+    <string name="tab_relationships">العلاقات</string>
+    <string name="tab_activities">الأنشطة</string>
+
+    <!-- Core Stats -->
+    <string name="stat_happiness">السعادة 😄</string>
+    <string name="stat_health">الصحة ❤️</string>
+    <string name="stat_smarts">الذكاء 🧠</string>
+    <string name="stat_looks">المظهر 😎</string>
+    <string name="stat_fame">الشهرة ⭐</string>
+    <string name="stat_karma">الكارما ☯️</string>
+
+    <!-- Common Buttons -->
+    <string name="btn_ok">موافق</string>
+    <string name="btn_cancel">إلغاء</string>
+    <string name="btn_close">إغلاق</string>
+    <string name="btn_back">رجوع</string>
+    <string name="btn_yes">نعم</string>
+    <string name="btn_no">لا</string>
+
+    <!-- Main Menu & Settings -->
+    <string name="menu_title">القائمة الرئيسية - BitLife</string>
+    <string name="menu_new_random_life">بدء حياة عشوائية جديدة</string>
+    <string name="menu_custom_life">تخصيص حياة جديدة (Custom Life)</string>
+    <string name="menu_cemetery">المقبرة وسجل الراحلين (Cemetery)</string>
+    <string name="menu_ribbons">الأوسمة المفتوحة (Ribbons)</string>
+    <string name="menu_heirlooms">المقتنيات الموروثة (Heirlooms)</string>
+    <string name="menu_apk_patcher">أداة استخراج وتعريب BitLife الأصلي</string>
+    <string name="menu_settings">الإعدادات (Settings)</string>
+    <string name="settings_sound">المؤثرات الصوتية</string>
+    <string name="settings_haptics">الاهتزاز اللمسي</string>
+    <string name="settings_half_year">التقدم بنصف سنة (6 أشهر)</string>
+
+    <!-- Life Stages & Roles -->
+    <string name="stage_infant">رضيع</string>
+    <string name="stage_toddler">طفل صغير</string>
+    <string name="stage_primary">طالب في المدرسة الابتدائية</string>
+    <string name="stage_middle">طالب في المدرسة الإعدادية</string>
+    <string name="stage_high">طالب في المدرسة الثانوية</string>
+    <string name="stage_university">طالب جامعي</string>
+    <string name="stage_unemployed">عاطل عن العمل</string>
+    <string name="stage_retired">متقاعد</string>
+    <string name="stage_prisoner">سجين (#%1$d سنوات متبقية)</string>
+    <string name="stage_deceased">متوفى (R.I.P.)</string>
+
+    <!-- Occupation Menu -->
+    <string name="occ_title">المهنة والتعليم (Occupation)</string>
+    <string name="occ_school_study_harder">📚 اجتهد أكثر في الدراسة (Study Harder)</string>
+    <string name="occ_school_skip">🏃 التغيب عن المدرسة (Skip School)</string>
+    <string name="occ_school_drop_out">🚪 ترك الدراسة (Drop Out)</string>
+    <string name="occ_apply_university">🎓 التقديم على الجامعة (University)</string>
+    <string name="occ_work_harder">💼 اعمل بجهد أكبر في وظيفتك</string>
+    <string name="occ_ask_raise">💵 طلب علاوة في الراتب (Ask for Raise)</string>
+    <string name="occ_full_time_jobs">🏢 وظائف بدوام كامل (Full-Time Jobs)</string>
+    <string name="occ_part_time_jobs">⏱️ وظائف بدوام جزئي (Part-Time Jobs)</string>
+    <string name="occ_special_careers">🌟 المهن الخاصة (Special Careers)</string>
+    <string name="occ_military">🪖 الجيش والقوات المسلحة (Military)</string>
+    <string name="occ_resign">📄 تقديم الاستقالة من العمل</string>
+
+    <!-- Assets Menu -->
+    <string name="assets_title">الأصول والماليات (Assets)</string>
+    <string name="assets_finances_summary">💰 ملخص الثروة والضرائب والمصاريف</string>
+    <string name="assets_real_estate">🏠 وسطاء العقارات (Real Estate Brokers)</string>
+    <string name="assets_cars">🚗 وكالات السيارات (Car Dealers)</string>
+    <string name="assets_jewelry">💎 متاجر المجوهرات (Jewelers)</string>
+    <string name="assets_aircraft_boats">✈️ معارض الطائرات واليخوت</string>
+    <string name="assets_my_properties">🔑 ممتلكاتي الحالية (بيع / ترميم / تأجير)</string>
+
+    <!-- Relationships Menu -->
+    <string name="rel_title">العلاقات والعائلة (Relationships)</string>
+    <string name="rel_spend_time_all">👨‍👩‍👧‍👦 قضاء وقت مع جميع أفراد العائلة</string>
+    <string name="rel_act_conversation">💬 تجاذب أطراف الحديث (Conversation)</string>
+    <string name="rel_act_compliment">🌟 إطراء ومدح (Compliment)</string>
+    <string name="rel_act_spend_time">☕ قضاء وقت معاً (Spend Time)</string>
+    <string name="rel_act_give_gift">🎁 تقديم هدية (Give a Gift)</string>
+    <string name="rel_act_give_money">💵 إعطاء المال ($500)</string>
+    <string name="rel_act_ask_money">🤲 طلب المال (Ask for Money)</string>
+    <string name="rel_act_argue">💢 جدال حاد (Argue)</string>
+    <string name="rel_act_propose">💍 التقدم لطلب الزواج (Propose)</string>
+    <string name="rel_act_make_love">❤️ ممارسة الحب / الإنجاب (Make Love)</string>
+    <string name="rel_act_divorce">💔 إنهاء العلاقة / الطلاق</string>
+
+    <!-- Activities Menu -->
+    <string name="act_title">الأنشطة (Activities)</string>
+    <string name="act_mind_body">🧘 العقل والجسم (نادي رياضي / تأمل / مكتبة)</string>
+    <string name="act_doctor">🩺 الطبيب والعلاج (Doctor)</string>
+    <string name="act_plastic_surgery">💉 الجراحة التجميلية (Plastic Surgery)</string>
+    <string name="act_love_dating">💘 الحب والمواعدة (Find a Date)</string>
+    <string name="act_crime">🕵️ الجريمة والسطو (Crime)</string>
+    <string name="act_casino_lottery">🎰 الكازينو واليانصيب (Casino &amp; Lottery)</string>
+    <string name="act_emigrate">✈️ الهجرة إلى دولة أخرى (Emigrate)</string>
+    <string name="act_social_media">📱 وسائل التواصل الاجتماعي (Social Media)</string>
+    <string name="act_will_testament">📜 الوصية وتوزيع الميراث (Will &amp; Testament)</string>
+    <string name="act_surrender">🏳️ الاستسلام وإنهاء الحياة (Surrender)</string>
+</resources>

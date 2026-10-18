@@ -1,4 +1,4 @@
-name: Build & Reverse-Engineer BitLife Arabic APK
+name: Build & Reverse-Engineer BitLife Arabic APK (Canary & SHA-256 Verified)
 
 on:
   push:
@@ -35,16 +35,7 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
-      - name: Setup Gradle 8.4
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.4'
-
-      - name: Build Base Arabic Android Project (gradle assembleDebug)
-        timeout-minutes: 15
-        run: gradle assembleDebug --stacktrace
-
-      - name: Reverse-Engineer & Patch Original BitLife APK (Apktool + IL2CPP global-metadata.dat)
+      - name: Reverse-Engineer & Patch Original BitLife APK (v4.0 Engine + Force-Inject)
         timeout-minutes: 35
         env:
           BITLIFE_APK_URL: ${{ github.event.inputs.apk_url }}
@@ -53,8 +44,33 @@ jobs:
           chmod +x tools/download_and_patch_original_apk.sh
           ./tools/download_and_patch_original_apk.sh
 
-      - name: Upload Compiled APK Artifact
+      - name: Verify SHA-256 (Before / After / Final APK) & Canary Check ("العمر")
+        run: |
+          echo "========================================================================"
+          echo " [WORKFLOW GATE] Verifying global-metadata.dat SHA-256 & Canary ('العمر')"
+          echo "========================================================================"
+          SHA_BEFORE=$(cat build_reverse_eng/sha256_before.txt)
+          SHA_AFTER=$(cat build_reverse_eng/sha256_after.txt)
+          unzip -p app/build/outputs/apk/debug/app-debug.apk assets/bin/Data/Managed/Metadata/global-metadata.dat > build_reverse_eng/extracted_from_final_apk.dat
+          SHA_FINAL_APK=$(sha256sum build_reverse_eng/extracted_from_final_apk.dat | awk '{print $1}')
+
+          echo "1. SHA-256 BEFORE PATCHING:  $SHA_BEFORE"
+          echo "2. SHA-256 AFTER PATCHING:   $SHA_AFTER"
+          echo "3. SHA-256 INSIDE FINAL APK: $SHA_FINAL_APK"
+
+          if [ "$SHA_BEFORE" = "$SHA_AFTER" ]; then
+            echo "[FATAL] global-metadata.dat was NOT modified by patcher!" >&2
+            exit 1
+          fi
+          if [ "$SHA_AFTER" != "$SHA_FINAL_APK" ]; then
+            echo "[FATAL] Packaged global-metadata.dat inside APK does NOT match patched file!" >&2
+            exit 1
+          fi
+
+          python3 -u tools/reverse_engineer_bitlife_apk.py --verify-apk-canary app/build/outputs/apk/debug/app-debug.apk "$SHA_AFTER" "$SHA_BEFORE"
+
+      - name: Upload Canary-Verified Arabic BitLife APK
         uses: actions/upload-artifact@v4
         with:
-          name: bitlife-arabic-debug-apk
+          name: bitlife-arabic-canary-verified-apk
           path: app/build/outputs/apk/debug/app-debug.apk

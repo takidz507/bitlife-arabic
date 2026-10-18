@@ -1,1 +1,0 @@
-Put original/bitlife.apk or original/bitlife.xapk here (or pass apk_url in GitHub Actions workflow_dispatch) to automatically decompile, binary-patch IL2CPP global-metadata.dat, and re-sign the official BitLife APK.

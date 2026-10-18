@@ -367,7 +367,7 @@ def prepare_single_apk_from_package(raw_pkg_path, work_dir, apkeditor_jar):
             try:
                 with zipfile.ZipFile(out_apk_path, "r") as inner_zf:
                     for item in inner_zf.namelist():
-                        if item.startswith(("assets/", "lib/")) and not item.endswith("/"):
+                        if (item.endswith("global-metadata.dat") or (item.startswith("assets/") and item.endswith((".json", ".xml", ".txt")) and not item.endswith("catalog.json"))) and not item.endswith("/"):
                             target_p = os.path.join(overlay_dir, item)
                             os.makedirs(os.path.dirname(target_p), exist_ok=True)
                             with inner_zf.open(item) as s_in, open(target_p, "wb") as d_out:

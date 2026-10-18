@@ -7,11 +7,11 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.candywriter.bitlife.ar"
+        applicationId "com.arabiclifesim.bitlife"
         minSdk 26
         targetSdk 34
-        versionCode 32503
-        versionName "3.25.3-ar"
+        versionCode 500
+        versionName "5.0.0-standalone-ar"
     }
 
     buildTypes {

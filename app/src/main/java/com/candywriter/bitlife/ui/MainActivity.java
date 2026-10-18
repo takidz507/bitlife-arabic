@@ -269,13 +269,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showUniversityMajorsDialog() {
-        String[] majors = {
-                "علوم الحاسوب (Computer Science)",
-                "المالية والاقتصاد (Finance)",
-                "العلوم السياسية (Political Science)",
-                "الأحياء والطب التمهيدي (Pre-Med Biology)",
-                "علم النفس (Psychology)"
-        };
+        String[] majors = engine.getUniversityMajors();
         new MaterialAlertDialogBuilder(this)
                 .setTitle("🎓 اختر التخصص الجامعي (University Major)")
                 .setItems(majors, (d, w) -> {

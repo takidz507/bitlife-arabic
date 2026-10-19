@@ -35,23 +35,15 @@ public class OriginalApkPatcherInfo {
 
     public static String inspectAndExportPatchFiles(Context context) {
         StringBuilder report = new StringBuilder();
-        report.append("✅ أنت تعمل الآن على النسخة العربية المستقلة (Standalone 64-Bit Native v5.0)!
-");
-        report.append("• معرف الحزمة المستقل: com.arabiclifesim.bitlife
-");
-        report.append("• المعمارية: 64-Bit Native Android (compileSdk 34 / targetSdk 34)
-");
-        report.append("• حالة الترخيص: 100% مفتوحة ومستقلة (لا تتطلب ترخيص Google Play ولا تتأثر بقيود 32-bit)
-");
-        report.append("• حجم قاموس التعريب المدمج (v5.0): 1,671 مصطلحاً + 44 قالب جمل ديناميكية
+        report.append("✅ أنت تعمل الآن على النسخة العربية المستقلة (Standalone 64-Bit Native v5.0)!\n");
+        report.append("• معرف الحزمة المستقل: com.arabiclifesim.bitlife\n");
+        report.append("• المعمارية: 64-Bit Native Android (compileSdk 34 / targetSdk 34)\n");
+        report.append("• حالة الترخيص: 100% مفتوحة ومستقلة (لا تتطلب ترخيص Google Play ولا تتأثر بقيود 32-bit)\n");
+        report.append("• حجم قاموس التعريب المدمج (v5.0): 1,671 مصطلحاً + 44 قالب جمل ديناميكية\n\n");
 
-");
-
-        report.append("📖 نماذج من قاموس التعريب v5.0 الفعال في اللعبة:
-");
+        report.append("📖 نماذج من قاموس التعريب v5.0 الفعال في اللعبة:\n");
         for (Map.Entry<String, String> entry : getSampleV5Dictionary().entrySet()) {
-            report.append("• ").append(entry.getKey()).append(" ⬅ ").append(entry.getValue()).append("
-");
+            report.append("• ").append(entry.getKey()).append(" ⬅ ").append(entry.getValue()).append("\n");
         }
 
         try {
@@ -59,23 +51,18 @@ public class OriginalApkPatcherInfo {
             if (outDir != null) {
                 if (!outDir.exists()) outDir.mkdirs();
                 File autoTransFile = new File(outDir, "BitLife_Arabic_v5_Glossary.txt");
-                StringBuilder fileContent = new StringBuilder("# BitLife Pure Arabic Localization v5.0 (1,671 Terms)
-");
+                StringBuilder fileContent = new StringBuilder("# BitLife Pure Arabic Localization v5.0 (1,671 Terms)\n");
                 for (Map.Entry<String, String> entry : getSampleV5Dictionary().entrySet()) {
-                    fileContent.append(entry.getKey()).append("=").append(entry.getValue()).append("
-");
+                    fileContent.append(entry.getKey()).append("=").append(entry.getValue()).append("\n");
                 }
                 try (FileOutputStream fos = new FileOutputStream(autoTransFile)) {
                     fos.write(fileContent.toString().getBytes(StandardCharsets.UTF_8));
                 }
-                report.append("
-📂 تم تصدير نسخة من ملف القاموس إلى:
-")
+                report.append("\n📂 تم تصدير نسخة من ملف القاموس إلى:\n")
                         .append(autoTransFile.getAbsolutePath());
             }
         } catch (Exception ex) {
-            report.append("
-⚠️ ملاحظة: ").append(ex.getMessage());
+            report.append("\n⚠️ ملاحظة: ").append(ex.getMessage());
         }
         return report.toString();
     }
